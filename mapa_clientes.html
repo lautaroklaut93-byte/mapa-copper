@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa Clientes — Copper Metal</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f1923;
+    color: #e8edf2;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  .header {
+    background: #162330;
+    border-bottom: 2px solid #b8860b;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #b8860b, #ffd700);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 14px; color: #0f1923; flex-shrink: 0;
+  }
+  .title { font-size: 16px; font-weight: 700; color: #ffd700; letter-spacing: .5px; }
+  .subtitle { font-size: 11px; color: #7a90a4; margin-top: 1px; }
+
+  .stats {
+    display: flex; gap: 16px; flex-shrink: 0;
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat-num { font-size: 18px; font-weight: 800; color: #ffd700; line-height: 1; }
+  .stat-label { font-size: 10px; color: #7a90a4; margin-top: 2px; }
+
+  .btn-reload {
+    background: #b8860b; color: #0f1923; border: none;
+    padding: 7px 14px; border-radius: 6px; font-size: 12px;
+    font-weight: 700; cursor: pointer; flex-shrink: 0;
+    transition: background .2s;
+  }
+  .btn-reload:hover { background: #ffd700; }
+
+  /* FILTROS */
+  .filters {
+    background: #162330;
+    border-bottom: 1px solid #243447;
+    padding: 8px 18px;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    flex-shrink: 0;
+  }
+  .filter-label { font-size: 11px; color: #7a90a4; margin-right: 4px; }
+  .filter-btn {
+    padding: 4px 12px; border-radius: 20px; border: 1.5px solid;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: all .15s; background: transparent;
+  }
+  .filter-btn.active { color: #0f1923 !important; }
+
+  .f-all   { border-color: #7a90a4; color: #7a90a4; }
+  .f-all.active { background: #7a90a4; }
+  .f-new   { border-color: #7a90a4; color: #9ab; }
+  .f-new.active { background: #4a6070; color: #e8edf2 !important; }
+  .f-visit { border-color: #2ecc71; color: #2ecc71; }
+  .f-visit.active { background: #2ecc71; }
+  .f-retry { border-color: #3498db; color: #3498db; }
+  .f-retry.active { background: #3498db; }
+  .f-no    { border-color: #e74c3c; color: #e74c3c; }
+  .f-no.active { background: #e74c3c; }
+
+  .search-box {
+    margin-left: auto;
+    background: #0f1923; border: 1px solid #243447;
+    border-radius: 6px; padding: 5px 10px;
+    color: #e8edf2; font-size: 12px; width: 200px;
+    outline: none;
+  }
+  .search-box::placeholder { color: #4a6070; }
+  .search-box:focus { border-color: #b8860b; }
+
+  /* LAYOUT PRINCIPAL */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 320px;
+    background: #162330;
+    border-right: 1px solid #243447;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid #243447;
+    font-size: 11px; color: #7a90a4;
+  }
+  .client-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .client-list::-webkit-scrollbar { width: 4px; }
+  .client-list::-webkit-scrollbar-track { background: #0f1923; }
+  .client-list::-webkit-scrollbar-thumb { background: #243447; border-radius: 2px; }
+
+  .client-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid #1a2d3d;
+    cursor: pointer;
+    transition: background .1s;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .client-item:hover { background: #1e3347; }
+  .client-item.selected { background: #1e3347; border-left: 3px solid #ffd700; }
+
+  .pin-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 4px;
+  }
+  .client-info { flex: 1; min-width: 0; }
+  .client-name {
+    font-size: 12px; font-weight: 600; color: #e8edf2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .client-loc { font-size: 10px; color: #7a90a4; margin-top: 2px; }
+  .client-vendor { font-size: 10px; color: #b8860b; margin-top: 1px; }
+
+  /* MAPA */
+  #map {
+    flex: 1;
+    background: #1a2a3a;
+    min-height: 500px;
+    height: 100%;
+    width: 100%;
+  }
+
+  /* PANEL DETALLE */
+  .detail-panel {
+    position: absolute;
+    bottom: 20px; right: 20px;
+    width: 300px;
+    background: #162330;
+    border: 1px solid #243447;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    display: none;
+    z-index: 1000;
+  }
+  .detail-panel.visible { display: block; }
+  .detail-close {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; color: #7a90a4;
+    font-size: 16px; cursor: pointer; line-height: 1;
+  }
+  .detail-name { font-size: 14px; font-weight: 700; color: #ffd700; margin-bottom: 10px; padding-right: 20px; }
+  .detail-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .detail-key { font-size: 11px; color: #7a90a4; }
+  .detail-val { font-size: 11px; color: #e8edf2; text-align: right; max-width: 170px; }
+  .detail-divider { border: none; border-top: 1px solid #243447; margin: 10px 0; }
+  .estado-selector { width: 100%; margin-top: 8px; }
+  .estado-selector label { font-size: 11px; color: #7a90a4; display: block; margin-bottom: 4px; }
+  .estado-selector select {
+    width: 100%; background: #0f1923; border: 1px solid #243447;
+    color: #e8edf2; border-radius: 6px; padding: 6px 8px;
+    font-size: 12px; cursor: pointer; outline: none;
+  }
+  .estado-selector select:focus { border-color: #b8860b; }
+  .notas-area { width: 100%; margin-top: 8px; }
+  .notas-area label { font-size: 11px; color: #7a90a4; display: block; margin-bottom: 4px; }
+  .notas-area textarea {
+    width: 100%; background: #0f1923; border: 1px solid #243447;
+    color: #e8edf2; border-radius: 6px; padding: 6px 8px;
+    font-size: 11px; resize: none; height: 60px; outline: none;
+    font-family: inherit;
+  }
+  .notas-area textarea:focus { border-color: #b8860b; }
+  .btn-save {
+    width: 100%; margin-top: 10px;
+    background: #b8860b; color: #0f1923;
+    border: none; border-radius: 6px; padding: 8px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: background .2s;
+  }
+  .btn-save:hover { background: #ffd700; }
+
+  /* LOADING */
+  .loading {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center; z-index: 2000;
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid #243447;
+    border-top-color: #ffd700; border-radius: 50%;
+    animation: spin .8s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: #7a90a4; }
+
+  .error-msg {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    background: #2d1a1a; border: 1px solid #e74c3c;
+    border-radius: 8px; padding: 20px; text-align: center;
+    max-width: 340px; z-index: 2000;
+  }
+  .error-msg h3 { color: #e74c3c; margin-bottom: 8px; }
+  .error-msg p { font-size: 12px; color: #9ab; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">CM</div>
+    <div>
+      <div class="title">Copper Metal — Mapa de Clientes</div>
+      <div class="subtitle">Actualización automática desde Google Sheets</div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num" id="stat-visit" style="color:#2ecc71">—</div><div class="stat-label">Visitados</div></div>
+    <div class="stat"><div class="stat-num" id="stat-pend" style="color:#9ab">—</div><div class="stat-label">Pendientes</div></div>
+  </div>
+  <button class="btn-reload" onclick="loadData()">↻ Actualizar</button>
+</div>
+
+<div class="filters">
+  <span class="filter-label">Filtrar:</span>
+  <button class="filter-btn f-all active" onclick="setFilter('all', this)">Todos</button>
+  <button class="filter-btn f-new"   onclick="setFilter('sin', this)">⬜ Sin visitar</button>
+  <button class="filter-btn f-visit" onclick="setFilter('vis', this)">✅ Visitado</button>
+  <button class="filter-btn f-retry" onclick="setFilter('rev', this)">🔄 Revisitar</button>
+  <button class="filter-btn f-no"    onclick="setFilter('no',  this)">❌ Sin interés</button>
+  <input class="search-box" id="search" placeholder="🔍 Buscar empresa..." oninput="applyFilters()">
+</div>
+
+<div class="main" style="height:calc(100vh - 110px)">
+  <div class="sidebar">
+    <div class="sidebar-header" id="sidebar-count">Cargando...</div>
+    <div class="client-list" id="client-list"></div>
+  </div>
+  <div style="position:relative; flex:1; height:100%;">
+    <div id="map"></div>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Cargando clientes desde Google Sheets...</div>
+    </div>
+    <div class="error-msg" id="error-msg" style="display:none">
+      <h3>⚠️ Error al cargar</h3>
+      <p>No se pudo conectar con Google Sheets.<br>
+      Verificá que el archivo sea público ("Cualquier persona con el enlace puede ver") y recargá la página.</p>
+    </div>
+  </div>
+</div>
+
+<div class="detail-panel" id="detail-panel">
+  <button class="detail-close" onclick="closeDetail()">✕</button>
+  <div class="detail-name" id="d-nombre"></div>
+  <div class="detail-row"><span class="detail-key">Código</span><span class="detail-val" id="d-codigo"></span></div>
+  <div class="detail-row"><span class="detail-key">Dirección</span><span class="detail-val" id="d-dir"></span></div>
+  <div class="detail-row"><span class="detail-key">Localidad</span><span class="detail-val" id="d-loc"></span></div>
+  <div class="detail-row"><span class="detail-key">Vendedor</span><span class="detail-val" id="d-vend"></span></div>
+  <hr class="detail-divider">
+  <div class="estado-selector">
+    <label>Estado de visita</label>
+    <select id="d-estado" onchange="updateEstadoColor()">
+      <option value="⬜ Sin visitar">⬜ Sin visitar</option>
+      <option value="✅ Visitado">✅ Visitado</option>
+      <option value="🔄 Revisitar">🔄 Revisitar</option>
+      <option value="❌ Sin interés">❌ Sin interés</option>
+    </select>
+  </div>
+  <div class="notas-area">
+    <label>Notas de visita</label>
+    <textarea id="d-notas" placeholder="Contacto, observaciones..."></textarea>
+  </div>
+  <button class="btn-save" onclick="saveToSheet()">💾 Guardar en Sheet</button>
+</div>
+
+<!-- Leaflet (mapa open source, sin API key) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- PapaParse para leer CSV -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0Ohqn54pwt6HZaCNlKI0vvj_V6Pki6d8t4sv03iP3LWpJlsi5hkKwwqMcXIFyTNPqFqjXSd__jOvq/pub?gid=984896950&single=true&output=csv';
+
+// Colores por estado
+const ESTADO_COLOR = {
+  '⬜ Sin visitar': '#4a6070',
+  '✅ Visitado':    '#2ecc71',
+  '🔄 Revisitar':  '#3498db',
+  '❌ Sin interés': '#e74c3c',
+};
+function colorForEstado(e) {
+  for (const [k,v] of Object.entries(ESTADO_COLOR)) {
+    if (e && e.includes(k.replace(/\s.*/,''))) return v;
+  }
+  return '#4a6070';
+}
+
+let map, allClients = [], markers = [], currentFilter = 'all', selectedIdx = null;
+
+// ── INICIALIZAR MAPA ──────────────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map', { zoomControl: true }).setView([-34.6, -58.4], 10);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    maxZoom: 19
+  }).addTo(map);
+}
+
+// ── CARGAR DATOS ──────────────────────────────────────────────────────────────
+function loadData() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('error-msg').style.display = 'none';
+
+  Papa.parse(CSV_URL + '&t=' + Date.now(), {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      document.getElementById('loading').style.display = 'none';
+      allClients = results.data;
+      geocodeAndPlot();
+    },
+    error: function() {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error-msg').style.display = 'block';
+    }
+  });
+}
+
+// ── GEOCODIFICAR Y PLOTEAR ────────────────────────────────────────────────────
+// Usamos Nominatim (OpenStreetMap) para geocodificar en batch pequeño
+// Para demo mostramos todos con coordenadas aproximadas por localidad conocida
+// En producción se puede agregar geocodificación real
+const LOCALIDAD_COORDS = {
+  'AVELLANEDA': [-34.665, -58.365], 'LANUS': [-34.7, -58.393],
+  'QUILMES': [-34.722, -58.254], 'SAN JUSTO': [-34.679, -58.558],
+  'LOMAS DEL MIRADOR': [-34.666, -58.534], 'CASEROS': [-34.606, -58.563],
+  'SAN MARTIN': [-34.573, -58.536], 'MORENO': [-34.652, -58.791],
+  'CABA': [-34.603, -58.381], 'CAP. FED.': [-34.603, -58.381],
+  'CAPITAL FEDERAL': [-34.603, -58.381], 'CAPITAL': [-34.603, -58.381],
+  'C.A.B.A.': [-34.603, -58.381], 'CAP.FED.': [-34.603, -58.381],
+  'VILLA BALLESTER': [-34.543, -58.554], 'VILLA MADERO': [-34.693, -58.527],
+  'TEMPERLEY': [-34.773, -58.397], 'BURZACO': [-34.818, -58.389],
+  'HAEDO': [-34.644, -58.597], 'MORON': [-34.652, -58.62],
+  'RAMOS MEJIA': [-34.644, -58.564], 'CASTELAR': [-34.661, -58.647],
+  'PILAR': [-34.459, -58.914], 'MUNRO': [-34.527, -58.517],
+  'FLORIDA': [-34.523, -58.499], 'MARTINEZ': [-34.491, -58.506],
+  'TIGRE': [-34.425, -58.579], 'SAN FERNANDO': [-34.441, -58.558],
+  'SAN ISIDRO': [-34.472, -58.527], 'OLIVOS': [-34.503, -58.499],
+  'VILLA LYNCH': [-34.584, -58.536], 'CIUDADELA': [-34.636, -58.545],
+  'ISIDRO CASANOVA': [-34.705, -58.594], 'TABLADA': [-34.681, -58.527],
+  'JOSE LEON SUAREZ': [-34.557, -58.559], 'PABLO PODESTA': [-34.577, -58.601],
+  'VILLA ZAGALA': [-34.55, -58.547], 'LOMA HERMOSA': [-34.563, -58.572],
+  'VILLA DOMINICO': [-34.695, -58.337], 'DOCK SUD': [-34.677, -58.333],
+  'VILLA MARTELLI': [-34.526, -58.508], 'CARAPACHAY': [-34.516, -58.514],
+  'BERISSO': [-34.878, -57.887], 'LA PLATA': [-34.921, -57.954],
+  'ENSENADA': [-34.858, -57.912], 'ROSARIO': [-32.946, -60.639],
+  'CORDOBA': [-31.416, -64.183], 'MENDOZA': [-32.889, -68.845],
+  'RAFAELA': [-31.252, -61.487], 'BAHIA BLANCA': [-38.719, -62.273],
+  'TANDIL': [-37.32, -59.133], 'MAR DEL PLATA': [-38.005, -57.543],
+  'NEUQUEN': [-38.951, -68.059], 'SALTA': [-24.783, -65.412],
+  'TUCUMAN': [-26.816, -65.216], 'SANTA FE': [-31.633, -60.7],
+  'VENADO TUERTO': [-33.746, -61.971], 'SAN NICOLAS': [-33.338, -60.225],
+  'LUJAN': [-34.57, -59.115], 'Mercedes': [-34.65, -59.43],
+  'ITUZAINGO': [-34.658, -58.673], 'JOSE C PAZ': [-34.522, -58.748],
+  'MERLO': [-34.676, -58.728], 'PASO DEL REY': [-34.641, -58.779],
+  'MORENO': [-34.652, -58.791], 'HURLINGHAM': [-34.589, -58.638],
+  'EL PALOMAR': [-34.607, -58.602], 'VILLA BOSCH': [-34.595, -58.594],
+  'MARTIN CORONADO': [-34.583, -58.574], 'SANTOS LUGARES': [-34.591, -58.558],
+  'SAN ANDRES': [-34.565, -58.553], 'VILLA ADELINA': [-34.524, -58.531],
+  'BOULOGNE': [-34.499, -58.558], 'BECCAR': [-34.471, -58.517],
+  'VIRREY DEL PINO': [-34.738, -58.694], 'GONZALEZ CATAN': [-34.756, -58.636],
+  'LUIS GUILLON': [-34.803, -58.439], 'RAFAEL CALZADA': [-34.787, -58.371],
+  'JOSE MARMOL': [-34.808, -58.371], 'BANFIELD': [-34.743, -58.397],
+  'LOMAS DE ZAMORA': [-34.758, -58.397], 'WILDE': [-34.698, -58.318],
+  'SARANDI': [-34.679, -58.345], 'BERNAL': [-34.706, -58.281],
+  'QUILMES OESTE': [-34.728, -58.274], 'FLORENCIO VARELA': [-34.807, -58.277],
+  'BERAZATEGUI': [-34.764, -58.213], 'HUDSON': [-34.797, -58.143],
+  'VILLA CELINA': [-34.697, -58.521], 'TAPIALES': [-34.709, -58.518],
+  'ALDO BONZI': [-34.706, -58.521], 'RAFAEL CASTILLO': [-34.726, -58.579],
+  'PONTEVEDRA': [-34.735, -58.699], 'TRISTAN SUAREZ': [-34.862, -58.54],
+  'EZEIZA': [-34.861, -58.518], 'CANNING': [-34.858, -58.504],
+  'MONTE GRANDE': [-34.818, -58.459], 'TEMPERLEY': [-34.773, -58.397],
+  'LLAVALLOL': [-34.789, -58.413], 'LAVALLOL': [-34.789, -58.413],
+  'ADROGUÉ': [-34.798, -58.393], 'DON TORCUATO': [-34.486, -58.601],
+  'EL TALAR': [-34.455, -58.623], 'GARIN': [-34.418, -58.737],
+  'ESCOBAR': [-34.349, -58.797], 'PIÑEYRO': [-34.675, -58.348],
+  'VILLA LUZURIAGA': [-34.661, -58.55], 'VILLA INSUPERABLE': [-34.664, -58.547],
+};
+
+function getCoords(client) {
+  const loc = (client['Localidad'] || '').toUpperCase().trim();
+  const prov = (client['Provincia'] || '').toUpperCase().trim();
+
+  if (LOCALIDAD_COORDS[loc]) {
+    const [lat, lng] = LOCALIDAD_COORDS[loc];
+    // Pequeño offset random para no apilar pins
+    return [lat + (Math.random()-.5)*.015, lng + (Math.random()-.5)*.015];
+  }
+  // Si es Buenos Aires pero localidad desconocida, coordenada genérica GBA
+  if (prov.includes('BUENOS AIRES')) return [-34.65 + (Math.random()-.5)*.3, -58.5 + (Math.random()-.5)*.3];
+  if (prov.includes('SANTA FE'))    return [-31.6 + (Math.random()-.5)*.5,  -60.7 + (Math.random()-.5)*.5];
+  if (prov.includes('CORDOBA'))     return [-31.4 + (Math.random()-.5)*.5,  -64.2 + (Math.random()-.5)*.5];
+  if (prov.includes('MENDOZA'))     return [-32.9 + (Math.random()-.5)*.3,  -68.8 + (Math.random()-.5)*.3];
+  return null;
+}
+
+function geocodeAndPlot() {
+  // Limpiar markers anteriores
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  allClients.forEach((client, i) => {
+    const coords = getCoords(client);
+    if (!coords) return;
+
+    const estado = client['Estado'] || '⬜ Sin visitar';
+    const color  = colorForEstado(estado);
+
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:12px;height:12px;border-radius:50%;
+        background:${color};border:2px solid rgba(255,255,255,.3);
+        box-shadow:0 0 6px ${color}88;
+      "></div>`,
+      iconSize: [12,12],
+      iconAnchor: [6,6],
+    });
+
+    const marker = L.marker(coords, {icon}).addTo(map);
+    marker.clientIdx = i;
+    marker.on('click', () => showDetail(i));
+    markers.push(marker);
+    client._marker = marker;
+    client._coords = coords;
+  });
+
+  updateStats();
+  renderList();
+  applyFilters();
+}
+
+// ── ESTADÍSTICAS ──────────────────────────────────────────────────────────────
+function updateStats() {
+  const total   = allClients.length;
+  const visited = allClients.filter(c => (c['Estado']||'').includes('✅')).length;
+  const pend    = allClients.filter(c => !(c['Estado']||'').includes('✅')).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-visit').textContent = visited;
+  document.getElementById('stat-pend').textContent  = pend;
+}
+
+// ── LISTA LATERAL ─────────────────────────────────────────────────────────────
+function renderList() {
+  const search  = document.getElementById('search').value.toLowerCase();
+  const list    = document.getElementById('client-list');
+  list.innerHTML = '';
+  let count = 0;
+
+  allClients.forEach((c, i) => {
+    const estado = c['Estado'] || '';
+    const nombre = c['Nombre'] || '';
+    const loc    = c['Localidad'] || '';
+    const vend   = c['Vendedor'] || '';
+
+    // Filtro de estado
+    if (currentFilter === 'sin' && !estado.includes('⬜')) return;
+    if (currentFilter === 'vis' && !estado.includes('✅')) return;
+    if (currentFilter === 'rev' && !estado.includes('🔄')) return;
+    if (currentFilter === 'no'  && !estado.includes('❌')) return;
+
+    // Filtro búsqueda
+    if (search && !nombre.toLowerCase().includes(search) && !loc.toLowerCase().includes(search)) return;
+
+    count++;
+    const color = colorForEstado(estado);
+    const item = document.createElement('div');
+    item.className = 'client-item' + (selectedIdx === i ? ' selected' : '');
+    item.innerHTML = `
+      <div class="pin-dot" style="background:${color}"></div>
+      <div class="client-info">
+        <div class="client-name">${nombre}</div>
+        <div class="client-loc">${loc}${c['Provincia'] ? ' · ' + c['Provincia'] : ''}</div>
+        <div class="client-vendor">${vend}</div>
+      </div>
+    `;
+    item.onclick = () => showDetail(i);
+    list.appendChild(item);
+
+    // Mostrar/ocultar marker según filtro
+    if (c._marker) {
+      if (currentFilter === 'all' || item) {
+        c._marker.setOpacity(1);
+      }
+    }
+  });
+
+  document.getElementById('sidebar-count').textContent = `${count} clientes mostrados`;
+}
+
+// ── FILTROS ───────────────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = document.getElementById('search').value.toLowerCase();
+
+  allClients.forEach(c => {
+    if (!c._marker) return;
+    const estado = c['Estado'] || '';
+    const nombre = (c['Nombre'] || '').toLowerCase();
+    const loc    = (c['Localidad'] || '').toLowerCase();
+
+    let show = true;
+    if (currentFilter === 'sin' && !estado.includes('⬜')) show = false;
+    if (currentFilter === 'vis' && !estado.includes('✅')) show = false;
+    if (currentFilter === 'rev' && !estado.includes('🔄')) show = false;
+    if (currentFilter === 'no'  && !estado.includes('❌')) show = false;
+    if (search && !nombre.includes(search) && !loc.includes(search)) show = false;
+
+    c._marker.setOpacity(show ? 1 : 0.08);
+  });
+
+  renderList();
+}
+
+// ── DETALLE ───────────────────────────────────────────────────────────────────
+function showDetail(i) {
+  selectedIdx = i;
+  const c = allClients[i];
+  document.getElementById('d-nombre').textContent = c['Nombre'] || '';
+  document.getElementById('d-codigo').textContent = c['Codigo_Cliente'] || '—';
+  document.getElementById('d-dir').textContent    = c['Direccion'] || '—';
+  document.getElementById('d-loc').textContent    = (c['Localidad'] || '') + (c['Provincia'] ? ', ' + c['Provincia'] : '');
+  document.getElementById('d-vend').textContent   = c['Vendedor'] || '—';
+  document.getElementById('d-estado').value       = c['Estado'] || '⬜ Sin visitar';
+  document.getElementById('d-notas').value        = c['Notas'] || '';
+
+  document.getElementById('detail-panel').classList.add('visible');
+
+  // Centrar mapa
+  if (c._coords) map.setView(c._coords, 14);
+  renderList();
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('visible');
+  selectedIdx = null;
+  renderList();
+}
+
+function updateEstadoColor() {
+  if (selectedIdx === null) return;
+  const estado = document.getElementById('d-estado').value;
+  const c = allClients[selectedIdx];
+  c['Estado'] = estado;
+  if (c._marker) {
+    const color = colorForEstado(estado);
+    c._marker.setIcon(L.divIcon({
+      className: '',
+      html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,.3);box-shadow:0 0 6px ${color}88;"></div>`,
+      iconSize: [12,12], iconAnchor: [6,6],
+    }));
+  }
+  updateStats();
+  renderList();
+}
+
+function saveToSheet() {
+  const msg = document.querySelector('.btn-save');
+  msg.textContent = '✓ Guardado localmente';
+  msg.style.background = '#2ecc71';
+  setTimeout(() => {
+    msg.textContent = '💾 Guardar en Sheet';
+    msg.style.background = '#b8860b';
+  }, 2000);
+
+  // Instrucción para el usuario
+  alert(`✅ Estado actualizado en el mapa.\n\nPara sincronizar con Google Sheets:\n→ Abrí el Sheet\n→ Editá la columna Estado de "${allClients[selectedIdx]['Nombre']}"\n→ El mapa se actualiza al recargar.\n\nTip: Bookmarkeá este archivo para abrirlo rápido desde el celu.`);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+initMap();
+loadData();
+</script>
+</body>
+</html>
